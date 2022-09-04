@@ -121,6 +121,27 @@ def truncate_hash(hash_value: str) -> str:
     return truncated_hash
 
 
+def hexcode_to_otp(truncated_hash: str, num_digits: int) -> str:
+    """Last step of the TOTP algorithm: to convert the truncated hash from hex to decimal. No need
+    it for the 'take home challenge solution', but useful for testing purposes.
+
+    According to RFC 6238, first we need to mask the most significant bit of the truncated hash
+    string to 'avoid confusion about signed vs. unsigned modulo computations' (thus retaining only
+    the last 31 bits of the truncated hash), but note that in this implementation, we're extracting
+    the decimal otp using the array slicing method, instead of a mod computation.
+
+    A mod computation would be: `otp_number = str(decimal_number % 10 ** num_digits)`"""
+    constant: Any = constants.ConstantsNamespace()
+
+    # apply XOR to remove the most significant bit of the hash (the most significant bit will be 0)
+    decimal_number: int = int(truncated_hash, constant.BASE16) & constant.XOR_MASK
+
+    # extract the required decimal digits to form the otp
+    otp_number: str = str(decimal_number)[-num_digits:]
+
+    return otp_number
+
+
 def totp_hash_generator(secret: str, current_time: int) -> str:
     """Implementation of the TOTP algorithm, according to RFC 6238.
 
@@ -134,6 +155,10 @@ def totp_hash_generator(secret: str, current_time: int) -> str:
 
     # step 2: truncate the generated SHA1 hash with dynamic offset truncation
     truncated_hash = truncate_hash(hmac_hash)
+
+    # step 3: the last step of the TOTP algorithm is to convert the truncated hash from hex to
+    #   decimal, but it's not needed to fulfill the 'take home challenge' requirements.
+    #   The implementation would be: `decimal_code: int = hexcode_to_otp(truncated_hash, 8)`
 
     return truncated_hash
 
