@@ -2,7 +2,7 @@
 Take home challenge solution. Please refer to the documentation 'TakeHomeChallenge_Marlon_Mata.pdf'
 for details and solution analysis.
 """
-
+from base64 import b32decode
 from hashlib import sha1
 from hmac import new as new_hmac
 from math import floor
@@ -89,7 +89,7 @@ def hmac_generator(secret: str, current_time: int) -> str:
 
     # Convert to bytes the secret and time counter to use the new() function of the hmac module to
     #   generate the hash
-    secret_in_bytes: bytes = bytes(secret, "utf-8")
+    secret_in_bytes: bytes = bytes(b32decode(secret, casefold=True))
     time_counter_in_bytes: bytes = time_counter.to_bytes(constant.BYTE_LENGTH, "big")
 
     #  We'll combine the time counter (our "moving factor") with the secret to create a hash-based
