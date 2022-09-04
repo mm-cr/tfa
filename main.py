@@ -10,7 +10,8 @@ from os.path import exists
 from secrets import choice
 from shelve import open as open_shelf
 from time import time
-from typing import Sequence
+from typing import Any
+import constants
 
 
 def prettify_hex(hex_str: str) -> str:
@@ -58,9 +59,10 @@ def secret_base32() -> str:
 
     :return: pseudo-randomly generated base32 secret
     """
-    SECRET_LENGTH: int = 32
-    CHARACTER_SET: Sequence[str] = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
-    secret = "".join(choice(CHARACTER_SET) for _ in range(SECRET_LENGTH))
+    constant: Any = constants.ConstantsNamespace()
+    secret = "".join(
+        choice(constant.CHARACTER_SET) for _ in range(constant.SECRET_LENGTH)
+    )
 
     return secret
 
@@ -74,18 +76,13 @@ def hmac_generator(secret: str) -> str:
     :param secret: a 32-character, base32 secret
     :return: a 160-bit hash string (a message digest from the HMAC-SHA-1 algorithm)
     """
-    BYTE_LENGTH = 8  # length of the time-based counter in bytes
-    TIME_STEP_IN_SECONDS = (
-        0  # timestep, to establish our "moving factor" (RFC 6238.) The default
-    )
-    # interval for the TOTP algorithm is 30 seconds, here is set to '0' to fulfil restriction 1
-    #  (see documentation - "Restrictions Checklist")
+    constant: Any = constants.ConstantsNamespace()
 
     current_time_in_seconds = floor(time())  # we use time.time() for unix time stamping
 
     try:
         # time_counter will be our time-base counter -the moving factor-
-        time_counter = floor(current_time_in_seconds / TIME_STEP_IN_SECONDS)
+        time_counter = floor(current_time_in_seconds / constant.TIME_STEP_IN_SECONDS)
 
     except ZeroDivisionError:
         time_counter = floor(current_time_in_seconds)
@@ -93,7 +90,7 @@ def hmac_generator(secret: str) -> str:
     # Convert to bytes the secret and time counter to use the new() function of the hmac module to
     #   generate the hash
     secret_in_bytes: bytes = bytes(secret, "utf-8")
-    time_counter_in_bytes: bytes = time_counter.to_bytes(BYTE_LENGTH, "big")
+    time_counter_in_bytes: bytes = time_counter.to_bytes(constant.BYTE_LENGTH, "big")
 
     #  We'll combine the time counter (our "moving factor") with the secret to create a hash-based
     #    message authentication code (HMAC) object, using SHA1. That is, a SHA1 hash.
@@ -113,18 +110,11 @@ def truncate_hash(hash_value: str) -> str:
     :param hash_value: a 160-bit hash string to be truncated
     :return: a 32-bit hash string, truncated from the original "hash_value" string
     """
-    BASE16: int = 16
-    TRUNCATED_HASH_LENGTH: int = 8  # hex digits for the final truncated hash (4-byte hash string)
+    constant: Any = constants.ConstantsNamespace()
 
-    NUM_CHARS_IN_GROUPS: int = 2  # number of hex characters in each of the groups that form the
-    # hash string.We have 20 bytes groups in the hash, each byte represented by two hex digits.
-    # The truncation offset indicates the number of the group that serves as a starting point for
-    # the truncated hash. Thus, we use NUM_CHARS_IN_GROUPS two compute the correct start position
-    # to truncate the hash, using the array slicing method.
-
-    truncation_offset: int = int(hash_value[-1], BASE16)
-    truncation_start: int = truncation_offset * NUM_CHARS_IN_GROUPS
-    truncation_end: int = truncation_start + TRUNCATED_HASH_LENGTH
+    truncation_offset: int = int(hash_value[-1], constant.BASE16)
+    truncation_start: int = truncation_offset * constant.NUM_CHARS_IN_GROUPS
+    truncation_end: int = truncation_start + constant.TRUNCATED_HASH_LENGTH
 
     truncated_hash = hash_value[truncation_start:truncation_end]
 
