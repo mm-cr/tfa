@@ -68,25 +68,24 @@ def secret_base32() -> str:
     return secret
 
 
-def hmac_generator(secret: str) -> str:
+def hmac_generator(secret: str, current_time: int) -> str:
     """HMAC-SHA-1 algorithm implementation (for Hash computation) to produce a message
     authentication code. It generates a 160-bit hash value (the message digest). If we could use
     SHA256 for the hash generation, it would generate a more secure (256-bit) hmac. We're using
     SHA1 to avoid future compatibility issues with current OTP apps.
 
     :param secret: a 32-character, base32 secret
+    :param current_time: current time in seconds (unix time)
     :return: a 160-bit hash string (a message digest from the HMAC-SHA-1 algorithm)
     """
     constant: Any = constants.ConstantsNamespace()
 
-    current_time_in_seconds = floor(time())  # we use time.time() for unix time stamping
-
     try:
         # time_counter will be our time-base counter -the moving factor-
-        time_counter = floor(current_time_in_seconds / constant.TIME_STEP_IN_SECONDS)
+        time_counter = floor(current_time / constant.TIME_STEP_IN_SECONDS)
 
     except ZeroDivisionError:
-        time_counter = floor(current_time_in_seconds)
+        time_counter = current_time
 
     # Convert to bytes the secret and time counter to use the new() function of the hmac module to
     #   generate the hash
@@ -122,16 +121,18 @@ def truncate_hash(hash_value: str) -> str:
     return truncated_hash
 
 
-def totp_hash_generator(secret: str) -> str:
+def totp_hash_generator(secret: str, current_time: int) -> str:
     """Implementation of the TOTP algorithm, according to RFC 6238.
 
     :param secret: a 32-character, base32 secret
+    :param current_time: current time in seconds (unix time)
     :return: a 4-byte hash string
     """
-    # generates an RFC 6238 compliant hash -a hash-based message authentication code
-    hmac_hash = hmac_generator(secret)
 
-    # we truncate the generated SHA1 hash with dynamic offset truncation
+    # step 1: generate an RFC 6238 compliant hash -a hash-based message authentication code
+    hmac_hash = hmac_generator(secret, current_time)
+
+    # step 2: truncate the generated SHA1 hash with dynamic offset truncation
     truncated_hash = truncate_hash(hmac_hash)
 
     return truncated_hash
@@ -171,10 +172,11 @@ def hex_codes_generator() -> str:
     """
     bad_code: bool = True
     hex_code: str = ""
-    secret: str = get_secret()
+    secret: str = get_secret()  # get the secret from our database
+    current_time: int = floor(time())  # we use time.time() for unix time stamping
 
     while bad_code:
-        hex_code = totp_hash_generator(secret)
+        hex_code = totp_hash_generator(secret, current_time)
         bad_code = hex_censor(hex_code)
 
     return hex_code
