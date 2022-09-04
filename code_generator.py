@@ -11,6 +11,7 @@ from secrets import choice
 from shelve import open as open_shelf
 from time import time
 from typing import Any
+
 import constants
 
 
@@ -127,13 +128,11 @@ def totp_hash_generator(secret: str) -> str:
     :param secret: a 32-character, base32 secret
     :return: a 4-byte hash string
     """
-    hmac_hash = hmac_generator(
-        secret
-    )  # generates an RFC 6238 compliant hash -a hash-based message authentication code
+    # generates an RFC 6238 compliant hash -a hash-based message authentication code
+    hmac_hash = hmac_generator(secret)
 
-    truncated_hash = truncate_hash(
-        hmac_hash
-    )  # we truncate the generated SHA1 hash with dynamic offset truncation
+    # we truncate the generated SHA1 hash with dynamic offset truncation
+    truncated_hash = truncate_hash(hmac_hash)
 
     return truncated_hash
 
