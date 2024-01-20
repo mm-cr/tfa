@@ -1,18 +1,15 @@
 """
-Take home challenge solution. Please refer to the documentation 'TakeHomeChallenge_Marlon_Mata.pdf'
-for details and solution analysis.
+Module for the implementation of the TOTP algorithm (RFC 6238) and helper methods.
 """
 from base64 import b32decode
 from hashlib import sha1
 from hmac import new as new_hmac
 from math import floor
-from os.path import exists
 from secrets import choice
-from shelve import open as open_shelf
 from time import time
 from typing import Any
 
-import constants
+from tfa import constants
 
 
 def prettify_hex(hex_str: str) -> str:
@@ -20,37 +17,9 @@ def prettify_hex(hex_str: str) -> str:
     For example, from 'a431e45b' to '0xA431E45B'.
 
     :param hex_str: truncated hexadecimal string to be formatted
-    :return: formatted hexadecimal string
+    :return: a formatted hexadecimal string
     """
     return "0x" + hex_str.upper()
-
-
-def hex_censor(hex_code: str) -> bool:
-    """Checks if the parameter "hex_code" is an odd-looking code or hexspeak code present in the
-    banned codes' dictionary (a txt file with the banned codes on it.)
-
-    :param hex_code: hexadecimal string to be checked
-    :return: True if hex_code is in the banned codes' dictionary, False otherwise
-    """
-    banned_code: bool = False
-
-    if exists("banned_codes_dict.txt"):
-        try:
-            with open("banned_codes_dict.txt", encoding="utf-8") as file:
-                if hex_code.lower() in file.read().lower():
-                    banned_code = True
-        except PermissionError:
-            print("Permission Error trying to access the file 'banned_codes_dict.txt'")
-
-    else:
-        # if the dict doesn't exist, created, to be able to add banned hex codes to the file
-        try:
-            with open("banned_codes_dict.txt", "x", encoding="utf-8") as file:
-                file.close()
-        except PermissionError:
-            print("Permission Error trying to create the file 'banned_codes_dict.txt'")
-
-    return banned_code
 
 
 def secret_base32() -> str:
@@ -122,8 +91,7 @@ def truncate_hash(hash_value: str) -> str:
 
 
 def hexcode_to_otp(truncated_hash: str, num_digits: int) -> str:
-    """Last step of the TOTP algorithm: to convert the truncated hash from hex to decimal. No need
-    it for the 'take home challenge solution', but useful for testing purposes.
+    """Last step of the TOTP algorithm: to convert the truncated hash from hex to decimal.
 
     According to RFC 6238, first we need to mask the most significant bit of the truncated hash
     string to 'avoid confusion about signed vs. unsigned modulo computations' (thus retaining only
@@ -131,6 +99,7 @@ def hexcode_to_otp(truncated_hash: str, num_digits: int) -> str:
     the decimal otp using the array slicing method, instead of a mod computation.
 
     A mod computation would be: `otp_number = str(decimal_number % 10 ** num_digits)`"""
+
     constant: Any = constants.ConstantsNamespace()
 
     # apply XOR to remove the most significant bit of the hash (the most significant bit will be 0)
@@ -156,38 +125,10 @@ def totp_hash_generator(secret: str, current_time: int) -> str:
     # step 2: truncate the generated SHA1 hash with dynamic offset truncation
     truncated_hash = truncate_hash(hmac_hash)
 
-    # step 3: the last step of the TOTP algorithm is to convert the truncated hash from hex to
-    #   decimal, but it's not needed to fulfill the 'take home challenge' requirements.
-    #   The implementation would be: `decimal_code: int = hexcode_to_otp(truncated_hash, 8)`
+    # step 3: convert the truncated hash from hex to decimal
+    decimal_code: str = hexcode_to_otp(truncated_hash, 6)
 
-    return truncated_hash
-
-
-def get_secret() -> str:
-    """Retrieves the secret from the database (a shelf.)
-
-    :return: a 32-character, base32 secret
-    """
-    secret: str = ""
-
-    # We use the "Shelve" Module to create a file and stores dictionary entries in it
-    try:
-        with open_shelf("db") as db_file:
-            secret = str(db_file.get("secret"))
-
-            # If there is no secret in our database, generate one, then store the secret in the db
-            if secret is None:
-                secret = secret_base32()
-                db_file["secret"] = secret
-
-    except PermissionError:
-        print("Error trying to access the file 'db.dat'")
-        secret = secret_base32()
-
-    finally:
-        db_file.close()
-
-    return secret
+    return decimal_code
 
 
 def hex_codes_generator() -> str:
@@ -195,23 +136,11 @@ def hex_codes_generator() -> str:
 
     :return: an 8-digit hex number
     """
-    bad_code: bool = True
-    hex_code: str = ""
-    secret: str = get_secret()  # get the secret from our database
-    current_time: int = floor(time())  # we use time.time() for unix time stamping
+    secret: str = (
+        secret_base32()
+    )  # generate a 32 character base32 secret --for temporal testing purposes
+    current_time: int = floor(time())  # unix time stamping
 
-    while bad_code:
-        hex_code = totp_hash_generator(secret, current_time)
-        bad_code = hex_censor(hex_code)
+    hex_code: str = totp_hash_generator(secret, current_time)  # TOTP algorithm
 
     return hex_code
-
-
-def main():
-    """Main function, creates a code and prints it on the console."""
-    code: str = hex_codes_generator()
-    print(prettify_hex(code))
-
-
-if __name__ == "__main__":
-    main()

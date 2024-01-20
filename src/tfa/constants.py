@@ -5,6 +5,7 @@ Module for handling constants declarations.
 
 class ConstantsNamespace:
     """Class that works as a namespace for constants."""
+
     @property
     def BASE16(self):
         """Base 16"""
@@ -54,6 +55,7 @@ class ConstantsNamespace:
 
 class TestConstantsNamespace:
     """Namespace for constants used in testing"""
+
     @property
     def TEST_NUM_DIGITS(self):
         """Hex digits for the truncated hash string"""
@@ -61,5 +63,5 @@ class TestConstantsNamespace:
 
     @property
     def TEST_SECRET(self):
-        """Secret for hmac generation"""
+        """Secret for hmac generation -for testing purposes-"""
         return "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
